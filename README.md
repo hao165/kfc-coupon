@@ -18,9 +18,9 @@
 - 後台功能：管理爬蟲資訊、Line Notify全站動態通知管理、審核優惠券
 
 ## 預覽圖
-![01](resources/pics/01.jpg "01")
-![02](resources/pics/02.jpg "02")
-![03](resources/pics/03.jpg "03")
+![01](https://i.imgur.com/9sY8pWU.jpg "01")
+![02](https://i.imgur.com/15369qN.jpg "02")
+![03](https://i.imgur.com/io0wAcF.jpg "03")
 
 ## 為什麼會有流量？
 因為肯德基優惠券於過期後，還是有可能可以繼續使用的，(長可達半年之久)
