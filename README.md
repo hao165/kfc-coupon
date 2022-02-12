@@ -1,12 +1,12 @@
 <p align="center">
-<a href="https://kfc.izo.tw" target="_blank"><img src="https://kfc.izo.tw/icon.png" width="150px"></a>
+<a href="https://kfc.izo.tw" target="_blank"><img src="https://kfc.izo.tw/icon.png" width="150px"><br>( 網址： https://kfc.izo.tw )</a>
 </p>
 
 ## KFC優惠選
 - 後端框架：Laravel 8 + Jetstream
 - 前端框架：Bootstrap 5.1 (with icon) + jQuery 3.6
 - REDIS (PECL-phpRedis) 用於流量統計.快取.SESSION
-- Git版本控管： 使用 Fork 進行
+- Git： 使用 Fork GUI 進行版本控管
 - VPS： Oracle Cloud + hestiaCP
 
 ## 網站說明
@@ -15,7 +15,12 @@
 - 透過爬蟲抓取PTT討論，採半自動化轉入討論區
 - 前端功能：提供篩選、排序、搜尋
 - 會員功能：新增優惠券、留言討論、收藏管理
-- 後台功能：管理爬蟲資訊、Line通知管理、審核優惠券
+- 後台功能：管理爬蟲資訊、Line Notify全站動態通知管理、審核優惠券
+
+## 預覽圖
+![01](resources/pics/01.jpg "01")
+![02](resources/pics/02.jpg "02")
+![03](resources/pics/03.jpg "03")
 
 ## 為什麼會有流量？
 因為肯德基優惠券於過期後，還是有可能可以繼續使用的，(長可達半年之久)
