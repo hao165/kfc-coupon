@@ -12,7 +12,7 @@ class Track extends Model
     /**
      * 批量賦值 - 白名單
      *
-     * @var string[]
+     * @var array
      */
     protected $fillable = [
         'user_id',
@@ -60,7 +60,6 @@ class Track extends Model
 
     public function getUrlAttribute()
     {
-        return 'https://www.ptt.cc/bbs/' . $this->attributes['cls'] . '/index.html';
+        return sprintf('https://www.ptt.cc/bbs/%s/index.html', $this->attributes['cls']);
     }
-
 }

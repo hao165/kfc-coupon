@@ -12,14 +12,14 @@ class CrawlerCheckAllPost extends Command
      *
      * @var string
      */
-    protected $signature = 'crawler:checkAllPost';
+    protected $signature = 'crawler:check-all-post';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = '爬蟲 - 執行抓取所有文章回應';
+    protected $description = '爬蟲：執行抓取文章列表的最新回應';
 
     /**
      * Create a new command instance.
@@ -39,8 +39,7 @@ class CrawlerCheckAllPost extends Command
     public function handle()
     {
         $this->info('[0] 開始爬取文章..');
-        $CrawlerHandler  = new CrawlerHandler();
-        $result = $CrawlerHandler->checkAllPost();
+        $result = (new CrawlerHandler())->checkAllPost();
         $this->info($result);
     }
 }

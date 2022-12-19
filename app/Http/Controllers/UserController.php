@@ -14,13 +14,7 @@ class UserController extends Controller
     public function edit()
     {
         $user = Auth::user();
-        $team = $user->currentTeam;
-
-        $canEdit = true;
-        // 權限判斷
-        if (!$user->hasTeamPermission($team, 'user:edit')) {
-            $canEdit = false;
-        }
+        $canEdit = $user->hasTeamPermission($user->currentTeam, 'user:edit');
         return view('member.edit', compact('user', 'canEdit'));
     }
     /**
@@ -29,13 +23,10 @@ class UserController extends Controller
     public function update(Request $request)
     {
         $user = Auth::user();
-        $team = $user->currentTeam;
 
-        $message = "";
         // 權限判斷
-        if (!$user->hasTeamPermission($team, 'user:edit')) {
-            $message = "權限不足！";
-            return Redirect()->route('member.edit')->with('message', $message);
+        if (!$user->hasTeamPermission($user->currentTeam, 'user:edit')) {
+            return Redirect()->route('member.edit')->with('message', '權限不足！');
         }
 
         $request->validate([
@@ -47,14 +38,12 @@ class UserController extends Controller
         ]);
 
         $member = User::find($user->id);
-        if(!$member) {
-            $message = "帳號異常！";
-            return Redirect()->route('member.edit')->with('message', $message);
+        if (!$member) {
+            return Redirect()->route('member.edit')->with('message', '帳號異常！');
         }
+
         $member->name = $request->input('name');
         $member->save();
-        $message = "更新成功！";
-
-        return Redirect()->route('member.edit')->with('message', $message);
+        return Redirect()->route('member.edit')->with('message', '更新成功！');
     }
 }

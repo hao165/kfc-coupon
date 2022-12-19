@@ -2,15 +2,12 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Http\Controllers\Controller;
-use App\Providers\RouteServiceProvider;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Http\Request;
-use Socialite;
-
 use App\Models\Team;
 use App\Models\User;
-
+use App\Http\Controllers\Controller;
+use App\Providers\RouteServiceProvider;
+use Socialite;
+use Exception;
 
 class LoginController extends Controller
 {
@@ -20,7 +17,7 @@ class LoginController extends Controller
      * Redirect to authentication page based on $provider.
      *
      * @param string $provider
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function redirectToProvider(string $provider)
     {
@@ -40,7 +37,7 @@ class LoginController extends Controller
      * Obtain the user information from $provider
      *
      * @param string $provider
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function handleProviderCallback(string $provider)
     {
@@ -63,25 +60,29 @@ class LoginController extends Controller
      *
      * @param string $provider
      * @param object $data
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function handleSocialUser(string $provider, object $data)
     {
+        // 1-1. 查找 provider id
         $user = User::where([
             "social->{$provider}->id" => $data->id,
         ])->first();
 
+        // 1-2. 查找 email
         if (!$user) {
             $user = User::where([
                 'email' => $data->email,
             ])->first();
         }
 
+        // 2-1. 不存在 建立新帳號
         if (!$user) {
             return $this->createUserWithSocialData($provider, $data);
         }
 
-        if ((!$user->hasVerifiedEmail())&&($data->email)){
+        // 2-2. 存在 儲存新資訊
+        if ((!$user->hasVerifiedEmail()) && ($data->email)) {
             $user->email = $data->email;
             $user->markEmailAsVerified();
         }
@@ -94,6 +95,7 @@ class LoginController extends Controller
         $user->profile_photo_path = $data->getAvatar();
         $user->save();
 
+        // 3. 登入
         return $this->socialLogin($user);
     }
 
@@ -102,14 +104,16 @@ class LoginController extends Controller
      *
      * @param string $provider
      * @param object $data
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function createUserWithSocialData(string $provider, object $data)
     {
         try {
+            // 以信箱為帳號，禁止空白
             if (!$data->email) {
                 throw new \Exception("Mail is null");
             }
+
             $user = new User;
             $user->email = $data->email;
             $user->name = $data->name;
@@ -123,13 +127,14 @@ class LoginController extends Controller
             // markEmailAsVerified() contains save() behavior
             $user->markEmailAsVerified();
 
-            //成為會員後 自動加入team，並切換成當前team
-            $team = Team::find(2); //member
+            // 成為會員後 自動加入team，並切換成當前team
+            $team = Team::find(2); // member
             $user->teams()->attach($team, ['role' => 'editor']);
             $user->switchTeam($team);
 
             $user->save();
 
+            // 登入
             return $this->socialLogin($user);
         } catch (Exception $e) {
             return redirect('login')->withErrors(['authentication_deny' => '[' . ucfirst($provider) . '] 授權錯誤： 您可以嘗試移除應用程式並重新登入！']);
@@ -140,7 +145,7 @@ class LoginController extends Controller
      * Log the user in
      *
      * @param User $user
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function socialLogin(User $user)
     {

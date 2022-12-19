@@ -3,32 +3,31 @@
 namespace App\Http\Controllers;
 
 use App\Constant\CouponStatusType;
+use App\Constant\FoodType;
+use App\Models\User;
 use App\Models\Coupon;
 use App\Models\Comment;
+use App\Services\Api\ImgurHandler;
+use App\Http\Requests\StoreCouponRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Constant\FoodType;
-use App\Models\Collect;
-use App\Models\User;
-use Illuminate\Support\Facades\Redirect;
-use Illuminate\Support\Facades\Storage;
-use Intervention\Image\Facades\Image;
-
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Log;
 
 class CouponController extends Controller
 {
-    protected $food_array_common, $food_array_less, $food_array_drink, $food_array,
-              $food_array_more;
-
+    protected $foodArray;
 
     public function __construct()
     {
-        $this->food_array_common = FoodType::FOOD_COMMON;
-        $this->food_array_less = FoodType::FOOD_LESS;
-        $this->food_array_drink = FoodType::FOOD_DRINK;
-        $this->food_array = array_merge($this->food_array_common, $this->food_array_less, $this->food_array_drink);
+        // Note: 解決 Auth 還未於 construct 載入的問題
+        $this->middleware(function ($request, $next) {
+            $this->user = Auth::user();
+            $this->collects = $this->user ? $this->user->collect_list : [];
+            return $next($request);
+        });
 
-        $this->food_array_more = FoodType::FOOD_MORE;
+        $this->foodArray = array_merge(FoodType::FOOD_COMMON, FoodType::FOOD_LESS, FoodType::FOOD_DRINK);
     }
 
     /**
@@ -36,65 +35,52 @@ class CouponController extends Controller
      */
     public function index()
     {
-        $food_array_common = $this->food_array_common;
-        $food_array_less = $this->food_array_less;
-        $food_array_drink = $this->food_array_drink;
-        $food_array_more = $this->food_array_more;
-
         $list = pCacheDb('c:home', function () {
             return Coupon::where('status', CouponStatusType::USABLE)->get();
         }, false, 3600);
 
-        $collects=[];
-        if($user = Auth::user()) {
-            $collects = $user->have_collects;
-        }
+        $pageTitle = "最新優惠券";
 
-        $pageWord = "最新優惠券";
+        $collects = $this->collects;
 
-        return view('coupons.index', compact('list', 'pageWord', 'collects', 'food_array_common', 'food_array_less', 'food_array_drink', 'food_array_more'));
+        $foodCommon = FoodType::FOOD_COMMON;
+        $foodLess   = FoodType::FOOD_LESS;
+        $foodDrink  = FoodType::FOOD_DRINK;
+        $foodMore   = FoodType::FOOD_MORE;
+        $foodHide   = FoodType::FOOD_HIDE;
+
+        return view('coupons.index', compact('list', 'pageTitle', 'collects', 'foodCommon', 'foodLess', 'foodDrink', 'foodMore', 'foodHide'));
     }
 
     /**
-     * 頁面 - 過期優惠券
+     * 頁面 - 已失效優惠券
      */
     public function expired()
     {
         $list = pCacheDb('c:exp', function () {
-            return Coupon::where('status', CouponStatusType::EXPIRED)->orderBy('view_cou','desc')->get();
+            return Coupon::where('status', CouponStatusType::EXPIRED)
+                ->orderBy('view_cou', 'desc')
+                ->take(30) // 前30筆
+                ->get();
         }, false, 86400);
 
-        $pageWord = "過期優惠券";
+        $pageTitle = "已失效優惠券";
 
-        $collects = [];
-        if ($user = Auth::user()) {
-            $collects = $user->have_collects;
-        }
+        $collects = $this->collects;
 
-        return view('coupons.index', compact('list', 'collects', 'pageWord'));
+        return view('coupons.index', compact('list', 'collects', 'pageTitle'));
     }
 
     /**
      * 頁面 - 優惠券內頁
      *
      * @param  string  $slug
-     * @param  \Illuminate\Http\Request  $request
      */
-    public function show($slug, Request $request)
+    public function show($slug)
     {
-        if (!$slug) {
-            return 'ERROR 404!';
-        }
+        $isHost = (request()->ip() === config('app.ip'));
 
-        $ip = $request->ip();
-        $isHost = true;
-        // 棄用-redis 人氣統計，改從前端判斷是否為真人瀏覽
-        if ($ip != config('app.ip')) {
-            //pCacheViewCou($slug, $ip, false);
-            $isHost = false;
-        }
-
-        // Coupon 為 已審核
+        // 取得已審核 Coupon (可用/過期)
         $coupon = pCacheDb('c:' . $slug, function () use ($slug) {
             return Coupon::where('slug', $slug)
                 ->where(function ($query) {
@@ -104,41 +90,55 @@ class CouponController extends Controller
                 ->first();
         }, $isHost);
 
-        $user = Auth::user();
+        // 若為未審核 Coupon
         if (!$coupon) {
-            // 待審核 Coupon
+            // 檢查是否登入
+            $user = $this->user;
             if (!$user) {
                 return view('coupons.404', compact('slug'));
             }
-            $coupon = Coupon::where('slug', $slug)->where('status', CouponStatusType::PENDING)->first();
+
+            // 取得未審核 Coupon
+            $coupon = Coupon::where('slug', $slug)
+                ->where('status', CouponStatusType::PENDING)
+                ->first();
             if (!$coupon) {
                 return view('coupons.404', compact('slug'));
             }
-            // 確認是否為role-admin或是本人
+
+            // 檢查是否為 admin 或是 新增者
             $isAdmin = $user->hasTeamRole($user->currentTeam, 'admin');
-            if (($coupon->user_id != $user->id) && (!$isAdmin)) {
+            if (!$isAdmin && ($coupon->user_id !== $user->id)) {
                 return view('coupons.404', compact('slug'));
             }
+
             return view('coupons.pending', compact('coupon', 'isAdmin'));
         }
 
-        $collects = [];
-        if ($user) {
-            $collects = $user->have_collects;
-        }
+        $collects = $this->collects;
 
-        // Comments 快取 30分鐘
+        // Coupon留言 - 快取30分鐘
         $comments = pCacheDb('cmt:' . $slug, function () use ($coupon) {
             return $coupon->comments()
-                ->orderby('created_at', 'DESC')
+                ->orderby('created_at', 'desc')
                 ->take(10)
                 ->join('users', 'comments.user_id', '=', 'users.id')
                 ->select('users.name', 'comments.*')
                 ->get();
         }, $isHost, 1800);
 
-        if (!$comments) {
-            $comments = [];
+        // 討論區留言 - 快取30分鐘
+        $commentsCount = $comments->count();
+        if ($commentsCount < 5) {
+            $chatComment = pCacheDb('cmt:chat', function () {
+                return Comment::where('coupon_id', '=', 1)
+                    ->orderby('created_at', 'desc')
+                    ->take(5)
+                    ->join('users', 'comments.user_id', '=', 'users.id')
+                    ->select('users.name', 'comments.*')
+                    ->get();
+            }, $isHost, 1800);
+            $comments = $comments->merge($chatComment) ?? [];
         }
 
         return view('coupons.show', compact('coupon', 'collects', 'comments'));
@@ -149,60 +149,43 @@ class CouponController extends Controller
      */
     public function create()
     {
-        $user = Auth::user();
-        $team = $user->currentTeam;
-
         // 權限判斷
-        if(!$user->hasTeamPermission($team, 'create')){
+        $user = $this->user;
+        if (!$user->hasTeamPermission($user->currentTeam, 'create')) {
             return redirect()->route('coupons.index');
         }
 
-        $food_array = $this->food_array;
-        return view('coupons.create',compact('food_array'));
+        $foodArray = $this->foodArray;
+        return view('coupons.create', compact('foodArray'));
     }
 
     /**
      * 功能 - 新增優惠券
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  Request  $request
      */
-    public function store(Request $request)
+    public function store(StoreCouponRequest $request)
     {
-        $user = Auth::user();
-        $team = $user->currentTeam;
-        $request->flash();
-
-        // 權限判斷
-        if (!$user->hasTeamPermission($team, 'create')) {
+        $slug = $request->input('slug', $request->input('title'));
+        if (is_null($slug)) {
             return redirect()->route('coupons.index');
         }
 
-        $request->validate([
-            'title' => 'digits_between:5,5',
-            'new_price' => 'required|integer',
-            'image' => 'required',
-            'start_at' => 'required|date',
-            'end_at' => 'required|date',
-        ], [
-            'title.digits_between' => '優惠券代號 請填寫五碼數字',
-            'new_price.required' => '售價 請填寫',
-            'new_price.integer' => '售價 請填寫數字',
-            'image.required' => '圖片 請透過本站上傳',
-            'start_at.required' => '開始時間 請確認',
-            'start_at.date' => '開始時間 請確認',
-            'end_at.required' => '結束時間 請確認',
-            'end_at.date' => '結束時間 請確認',
-        ]);
+        // 權限判斷
+        $user = $this->user;
+        if (!$user->hasTeamPermission($user->currentTeam, 'create')) {
+            return redirect()->route('coupons.index');
+        }
 
         $result = (object) $this->handle($request, $user, 'store');
 
-        $message = '新增成功！ '.$result->message.'  <a class="text-decoration-none" href="' . route('coupons.show', $result->slug) . '" target="_blank">查看</a>';
-
         // 全站動態通知
-        if($result->message){
-            pSiteLineNotify("Coupon\n\n" . $result->message . "\n\n" . route('coupons.show', $result->slug));
+        if ($result->message) {
+            $notifyContent = sprintf("Coupon\n\n%s\n\n%s", $result->message, route('coupons.show', $result->slug));
+            pSiteLineNotify($notifyContent);
         }
 
+        $message = sprintf('新增成功！ %s  <a class="text-decoration-none" href="%s" target="_blank">查看</a>', $result->message, route('coupons.show', $result->slug));
         if (!$result->success) {
             $message = $result->message;
         }
@@ -213,17 +196,12 @@ class CouponController extends Controller
     /**
      * 功能 - 計數器 : 前端判斷為真人瀏覽
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  Request  $request
      */
     public function viewCount(Request $request)
     {
-        $slug = $request->input('slug', '');
-        $ip = $request->input('ip', '');
-        if(!$slug || !$ip){
-            return;
-        }
-        if($ip != config('app.ip')){
-            pCacheViewCou($slug, $ip, false);
+        if ($slug = $request->input('slug')) {
+            pCacheViewCou($slug);
         }
     }
 
@@ -234,15 +212,9 @@ class CouponController extends Controller
      */
     public function edit($slug)
     {
-        if (!$slug) {
-            return 'ERROR 404!';
-        }
-
-        $user = Auth::user();
-        $team = $user->currentTeam;
-
         // 權限判斷
-        if (!$user->hasTeamPermission($team, 'update')) {
+        $user = $this->user;
+        if (!$user->hasTeamPermission($user->currentTeam, 'update')) {
             return redirect()->route('coupons.index');
         }
 
@@ -251,33 +223,33 @@ class CouponController extends Controller
             return view('coupons.404', compact('slug'));
         }
 
-        $food_array = $this->food_array;
+        $foodArray = $this->foodArray;
 
-        return view('coupons.edit', compact('coupon', 'food_array'));
+        return view('coupons.edit', compact('coupon', 'foodArray'));
     }
 
     /**
      * 功能 - 修改優惠券 (目前僅role-admin)
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  Request  $request
      */
     public function update(Request $request)
     {
-        $user = Auth::user();
-        $team = $user->currentTeam;
-
         $slug = $request->input('slug', $request->input('title'));
+        if (is_null($slug)) {
+            return redirect()->route('coupons.index');
+        }
 
         // 權限判斷
-        if (!$user->hasTeamPermission($team, 'update')) {
-            return redirect()->route('coupons.show', $slug);
+        $user = $this->user;
+        if (!$user->hasTeamPermission($user->currentTeam, 'update')) {
+            return redirect()->route('coupons.index');
         }
 
         $result = (object) $this->handle($request, $user, 'update');
 
-        $message = '更新已送出！  <a class="text-decoration-none" href="' . route('coupons.show', $result->slug) . '" target="_blank">查看</a>';
-
-        if(!$result->success){
+        $message = sprintf('更新成功！  <a class="text-decoration-none" href="%s" target="_blank">查看</a>', route('coupons.show', $slug));
+        if (!$result->success) {
             $message = $result->message;
         }
 
@@ -291,16 +263,14 @@ class CouponController extends Controller
      */
     public function destroy($slug)
     {
-        $user = Auth::user();
-        $team = $user->currentTeam;
-
         // 權限判斷
-        if (!$user->hasTeamPermission($team, 'delete')) {
+        $user = $this->user;
+        if (!$user->hasTeamPermission($user->currentTeam, 'delete')) {
             return redirect()->route('coupons.index');
         }
 
         $coupon = Coupon::where('slug', $slug)->first();
-        if(!$coupon) {
+        if (!$coupon) {
             return back();
         }
 
@@ -320,11 +290,9 @@ class CouponController extends Controller
      */
     public function verify($id, $type)
     {
-        $user = Auth::user();
-        $team = $user->currentTeam;
-
         // 權限判斷
-        if (!$user->hasTeamPermission($team, 'verify')) {
+        $user = $this->user;
+        if (!$user->hasTeamPermission($user->currentTeam, 'verify')) {
             return redirect()->route('coupons.index');
         }
 
@@ -333,20 +301,31 @@ class CouponController extends Controller
             return back();
         }
 
-        if ($type == 'pass') {
-            $coupon->slug = $coupon->title;
+        if ($type === 'pass') {
+            $coupon->slug   = $coupon->title;
             $coupon->status = CouponStatusType::USABLE;
             $coupon->save();
-        } else if ($type == 'fail') {
-            $coupon->slug = $coupon->slug . "-fail";
+
+            // comment新增留言:系統通知
+            $postData = [
+                'user_id'    => 2,
+                'tag'        => 'reply',
+                'content'    => '系統通知: 由 ' . $coupon->user->name . ' 協助新增了這張優惠券！',
+                'ip'         => '0.0.0.0',
+                'created_at' => $coupon->created_at,
+            ];
+            $coupon->comments()->create($postData);
+            pForgetCache(['c:' . $coupon->slug, 'c:home']);
+        } elseif ($type === 'fail') {
+            $coupon->slug   = $coupon->slug . "-fail";  // Note: 方便DB易讀
             $coupon->status = CouponStatusType::FAIL;
             $coupon->save();
             $coupon->delete();
-        } else{
+        } else {
             return "type異常";
         }
 
-        return redirect()->route('coupons.show',$coupon->slug);
+        return redirect()->route('coupons.show', $coupon->slug);
     }
 
     /**
@@ -354,11 +333,9 @@ class CouponController extends Controller
      */
     public function pendingList()
     {
-        $user = Auth::user();
-        $team = $user->currentTeam;
-
         // 權限判斷
-        if (!$user->hasTeamPermission($team, 'verify')) {
+        $user = $this->user;
+        if (!$user->hasTeamPermission($user->currentTeam, 'verify')) {
             return redirect()->route('coupons.index');
         }
 
@@ -370,13 +347,13 @@ class CouponController extends Controller
     /**
      * 處理 新增.修改
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \app\Models\User  $User
+     * @param  Request $request
+     * @param  User    $User
      * @param  string  $type
      */
     public function handle(Request $request, User $user, $type)
     {
-        $slug = $request->input('slug', $request->input('title'));
+        $slug   = $request->input('slug', $request->input('title'));
         $status = $request->input('status', 0);
         $userId = $user->id;
         $message = "";
@@ -386,22 +363,25 @@ class CouponController extends Controller
         $content = [];
 
         $tags = $request->input('tag');
-        $food_array = $this->food_array;
-        $food_array_more = $this->food_array_more;
+        $foodArray = $this->foodArray;
+        $foodMore  = FoodType::FOOD_MORE;
         foreach ($tags as $key => $value) {
             if ($value > 0) {
-                $tag[] = $key;
-                $the_content = $food_array[$key][0] . 'x' . $value;
-                $content[] = $the_content;
-                foreach ($food_array_more as $key2 => $value2) {
-                    if ($the_content == $value2[0]) {
-                        $tag[] = $key2;
+                $tagList[] = $key;
+
+                $tagName = $foodArray[$key][0] . 'x' . $value;
+                $tagNameList[] = $tagName;
+
+                // 組合餐
+                foreach ($foodMore as $key2 => $value2) {
+                    if ($tagName === $value2[0]) {
+                        $tagList[] = $key2;
                     }
                 }
             }
         }
-        $tag = implode(' ', $tag);
-        $content = implode(' + ', $content);
+        $tag = implode(' ', $tagList);
+        $content = implode(' + ', $tagNameList);
 
         if (!$tag) {
             return [
@@ -412,26 +392,24 @@ class CouponController extends Controller
         }
 
         // 處理金額
-        $new_price = $request->input('new_price');
-        $old_price = $request->input('old_price');
-        $discount  = $request->input('discount');
-        if ((!$old_price) && (!$discount)) {
+        $newPrice = $request->input('new_price');
+        $oldPrice = $request->input('old_price');
+        $discount = $request->input('discount');
+        if ($oldPrice) {
+            $discount = round($newPrice / $oldPrice, 2);
+        } elseif ($discount) {
+            $oldPrice = round($newPrice / $discount * 100, 0);
+            $discount = $discount / 100;
+        } else {
             return [
                 'success' => false,
                 'slug' => $slug,
                 'message' => '請填寫原價/折數',
             ];
         }
-        if ($old_price) {
-            $discount = round($new_price / $old_price, 2);
-        } else if ($discount) {
-            $old_price = round($new_price / $discount * 100, 0);
-            $discount = $discount / 100;
-        }
 
-        $sub_title = $request->input('sub_title');
-        if($type== "store"){
-            if($user->hasTeamRole($user->currentTeam, 'admin')) {
+        if ($type === "store") {
+            if ($user->hasTeamRole($user->currentTeam, 'admin')) {
                 // 處理slug-變更重複Coupon
                 $oldCoupon = Coupon::where('slug', $slug)->first();
                 if ($oldCoupon) {
@@ -444,40 +422,34 @@ class CouponController extends Controller
 
                 // 處理 $sub_title 清潔資料
                 $content = strip_tags($content);
-
-
-            }else{
+            } else {
                 // 非admin slug 新增後綴 userId 等待審核後才轉正確
-                $slug = $slug . "-" . $userId . "-check";
+                $slug = sprintf("%s-%s-check", $slug, $userId);
                 $status = CouponStatusType::PENDING;
                 $message = "等待審核中..";
             }
         }
 
         // 日期處理 = 勾選不填寫
-        $start_at = $request->input('start_at');
-        if($start_at == '2000-01-01'){
-            $start_at = NULL;
-        }
-        $end_at = $request->input('end_at');
-        if ($end_at == '2000-01-01') {
-            $end_at = NULL;
-        }
+        $startAt = $request->input('start_at');
+        $endAt   = $request->input('end_at');
+        $startAt = ($startAt === '2000-01-01') ? null : $startAt;
+        $endAt   = ($endAt === '2000-01-01') ? null : $endAt;
 
         $data = [
-            'user_id' => $userId,
+            'user_id'   => $userId,
             //'slug' => $slug,
-            'title' => $request->input('title'),
-            'sub_title' => $sub_title,
-            'image' => $request->input('image'),
-            'content' => $content,
-            'tag' => $tag,
-            'old_price' => $old_price,
-            'new_price' => $new_price,
-            'discount' => $discount,
-            'start_at' => $start_at,
-            'end_at' => $end_at,
-            'status' => $status,
+            'title'     => $request->input('title'),
+            'sub_title' => $request->input('sub_title'),
+            'image'     => $request->input('image'),
+            'content'   => $content,
+            'tag'       => $tag,
+            'old_price' => $oldPrice,
+            'new_price' => $newPrice,
+            'discount'  => $discount,
+            'start_at'  => $startAt,
+            'end_at'    => $endAt,
+            'status'    => $status,
         ];
 
         $newCoupon = Coupon::updateOrCreate(['slug' => $slug], $data);
@@ -491,7 +463,7 @@ class CouponController extends Controller
             ];
             $newCoupon->comments()->create($postData);
         }
-        pForgetCache(['c_'. $slug, 'c_home']);
+        pForgetCache(['c:'. $slug, 'c:home']);
 
         return [
             'success' => true,
@@ -503,48 +475,20 @@ class CouponController extends Controller
     /**
      * 處理 imgur上傳圖片
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  Request  $request
      */
     public function imgur(Request $request)
     {
-        $client_id = config('services.imgur.client_id');
-        $client_secret = config('services.imgur.client_secret');
-
+        $response = null;
         if ($request->hasFile('img_file')) {
-
-            $requestImg = $request->file('img_file');
-
-            // 暫存路徑
-            $img_temp = rand().'.jpg';
-            $img_temp_path = storage_path('app/temp/' . $img_temp);
-
-            // 新增浮水印
-            $img = Image::make($requestImg->getRealPath());
-            $imgMark = Image::make('watermark.png');
-            $img_width = $img->width();
-            $imgMark_width = round($img_width*0.25);
-            $imgMark->resize($imgMark_width, null, function ($constraint) {
-                $constraint->aspectRatio();
-            });
-            $img->insert($imgMark, 'bottom-left', 30, 20)->save($img_temp_path);
-
-            $data = fread(fopen($img_temp_path, "r"), filesize($img_temp_path));
-            $curl = curl_init();
-            curl_setopt($curl, CURLOPT_URL, 'https://api.imgur.com/3/image.json');
-            curl_setopt($curl, CURLOPT_TIMEOUT, 30);
-            curl_setopt($curl, CURLOPT_HTTPHEADER, array('Authorization: Client-ID ' . $client_id));
-            curl_setopt($curl, CURLOPT_POST, 1);
-            curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($curl, CURLOPT_POSTFIELDS, array('image' => base64_encode($data)));
-            curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-            $out = curl_exec($curl);
-            curl_close($curl);
-
-            //刪除暫存的圖片
-            Storage::delete('temp/'.$img_temp);
-
-            $pms = json_decode($out, true);
-            return $pms['data']['id'];
+            try {
+                $response = (new ImgurHandler)->upload($request);
+            } catch (\Exception $ex) {
+                Log::channel('imgur_request')->error(json_encode([
+                    'exception' => $ex->getMessage(),
+                ]));
+            }
         }
+        return Arr::get($response, 'data.id', '');
     }
 }

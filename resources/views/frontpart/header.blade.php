@@ -11,7 +11,7 @@
                     <a class="nav-link text-white showLoading" href="{{route('coupons.create')}}">新增優惠券</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link text-white showLoading" href="{{route('coupons.expired')}}">過期券</a>
+                    <a class="nav-link text-white showLoading" href="{{route('coupons.expired')}}">失效券</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link text-white showLoading" href="{{route('chat.index',1)}}">討論區</a>

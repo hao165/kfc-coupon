@@ -25,8 +25,12 @@
                 data: form_data,
                 type: 'post',
                 success: function(data) {
-                    $('#image').val(data);
-                    $('#imageTxt').val("上傳成功！");
+                    if (data) {
+                        $('#image').val(data);
+                        $('#imageTxt').val("上傳成功！");
+                    } else {
+                        $('#imageTxt').val("上傳失敗..");
+                    }
                 }
             });
         });
@@ -111,7 +115,7 @@
             <div class="mb-3 col-md-6">
             </div>
 
-            @foreach ($food_array as $key => $value)
+            @foreach ($foodArray as $key => $value)
             <div class="mb-3 col">
                 <label for="{{$key}}" class="form-label" style="white-space:nowrap;">{{$value[0]}}</label><br>
                 <select id="{{$key}}" name="tag[{{$key}}]" style="padding:4px;" value="{{ old('tag['.$key.']') }}">

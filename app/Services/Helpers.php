@@ -2,7 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use App\Services\LineNotifyHandler;
+use App\Services\Api\LineNotifyHandler;
 
 /*
 |--------------------------------------------------------------------------
@@ -19,24 +19,16 @@ if (!function_exists('pBuildPaginate')) {
      *
      * @param int   $page 頁數
      * @param mixed $query
+     * @param mixed $paginate 每頁數量
      *
      * @return mixed
      */
-    function pBuildPaginate($page, $query)
+    function pBuildPaginate($page, $query, $paginate = 15)
     {
-        $paginate = 15; //每頁數量
         $skip = ($page * $paginate) - $paginate;
-        $prevUrl = $nextUrl = '';
-
-        if ($skip > 0) {
-            $prevUrl = $page - 1;
-        }
-
         $list = $query->skip($skip)->take($paginate)->get();
-
-        if ($list->count() >= $paginate) {
-            $nextUrl = $page + 1;
-        }
+        $prevUrl = ($skip > 0) ? ($page - 1) : '';
+        $nextUrl = ($list->count() >= $paginate) ? ($page + 1) : '';
 
         return [
             'list'    => $list,
@@ -57,7 +49,7 @@ if (!function_exists('pSiteLineNotify')) {
     function pSiteLineNotify($content)
     {
         (new LineNotifyHandler)
-        ->notifyHandle(config('services.line_notify.site'), $content);
+            ->send(config('services.line_notify.site'), $content);
     }
 }
 
@@ -71,15 +63,20 @@ if (!function_exists('pCacheViewCou')) {
      *
      * @return mixed
      */
-    function pCacheViewCou($slug, $ip = null, $clear = false)
+    function pCacheViewCou($slug, $clear = false)
     {
-        if (false === config('cache.cache_redis_enabled') || !$ip ) {
+        $ip = request()->ip();
+
+        if (is_null($ip)
+            || $ip === config('app.ip')
+            || false === config('cache.cache_redis_enabled')
+        ) {
             return;
         }
 
-        $prefix = 'v_' . date('md');
-        $key = $prefix . '_' . $slug;
-        $redis = Cache::getRedis();
+        $redis  = Cache::getRedis();
+        $prefix = sprintf('v_%s', date('md'));
+        $key    = sprintf('%s_%s', $prefix, $slug);
 
         if ($clear) {
             $redis->del($prefix);
@@ -133,11 +130,10 @@ if (!function_exists('pCacheTags')) {
             return $callback();
         }
 
-        $data = null;
         if (!$seconds) {
-            return $data = Cache::tags($prefix)->rememberForever($cacheKey, $callback);
+            return Cache::tags($prefix)->rememberForever($cacheKey, $callback);
         } else {
-            return $data = Cache::tags($prefix)->remember($cacheKey, (int) $seconds, $callback);
+            return Cache::tags($prefix)->remember($cacheKey, (int) $seconds, $callback);
         }
     }
 }
@@ -159,8 +155,8 @@ if (!function_exists('pCacheIncHash')) {
             return;
         }
 
+        $redis    = Cache::getRedis();
         $cacheKey = $prefix;
-        $redis = Cache::getRedis();
 
         if ($clear) {
             if ($cou === 0) {

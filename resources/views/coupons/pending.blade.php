@@ -26,16 +26,16 @@
             <div class="card-body">
                 <div class="card-header rounded bg-secondary bg-gradient mb-3" style="--bs-bg-opacity: .5;">
                 <h5 class="mt-1 mb-2">
-                    @if ($coupon->is_hot=='lv3')
+                    @if ($coupon->hot_level=='lv3')
                         <i class="bi bi-star-fill text-warning"></i>
                     @endif
 
-                    <span class="mx-2">{{$coupon->new_price_name}}</span>
+                    <span class="mx-2">{{$coupon->new_price_name}} ({{$coupon->old_price}})</span>
                     <span class="mx-2 fw-bold text-decoration-underline">{{$coupon->title}}</span>
 
-                    @if ($coupon->is_hot=='lv3')
+                    @if ($coupon->hot_level=='lv3')
                         <span class="rounded float-end bg-danger text-light p-1">
-                    @elseif ($coupon->is_hot=='lv2')
+                    @elseif ($coupon->hot_level=='lv2')
                         <span class="rounded float-end bg-success text-light p-1" style="--bs-bg-opacity: .7;">
                     @else
                         <span class="rounded float-end bg-white p-1">

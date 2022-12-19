@@ -3,8 +3,6 @@
 namespace App\Services;
 
 use App\Models\Crawler;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use QL\QueryList;
 
@@ -13,7 +11,7 @@ class CrawlerHandler
     /**
      * 新增 追蹤文章到資料庫 - Handler
      */
-    function addPostHandler($url)
+    public function addPostHandler($url)
     {
         if (!$url) {
             return [
@@ -23,12 +21,12 @@ class CrawlerHandler
         }
 
         // 取得文章資訊
-        $post_header = $this->getPostHeader($url);
+        $postHeader = $this->getPostHeader($url);
         $crawler = Crawler::updateOrCreate(
-            ['slug' => $post_header['slug']],
+            ['slug' => $postHeader['slug']],
             [
-                'cls' => $post_header['cls'],
-                'title' => $post_header['title'],
+                'cls' => $postHeader['cls'],
+                'title' => $postHeader['title'],
                 'status' => 1,
             ]
         );
@@ -37,21 +35,21 @@ class CrawlerHandler
 
         return [
             'success' => true,
-            'message' => '[' . $post_header['cls'] . '] <br>' . $post_header['title'] . ' <br>回覆數：' . $addCou,
+            'message' => sprintf('[%s] <br>%s<br>回覆數：%s', $postHeader['cls'], $postHeader['title'], $addCou),
         ];
     }
 
     /**
      * 執行 抓取全部文章的新留言
      */
-    function checkAllPost()
+    public function checkAllPost()
     {
-        $crawlers = Crawler::where('status', 1)->get();
         $result = '';
+
+        $crawlers = Crawler::where('status', 1)->get();
         foreach ($crawlers as $crawler) {
-            $url = $crawler->url;
-            $addCou = $this->addReplyHandler($url, $crawler);
-            $result .= $crawler->cls . ' : ' . $crawler->slug . "，新增" . $addCou . "筆" . PHP_EOL;
+            $addCou = $this->addReplyHandler($crawler->url, $crawler);
+            $result .= sprintf('%s : %s，新增%s筆', $crawler->cls, $crawler->slug, $addCou) . PHP_EOL;
         }
         return $result;
     }
@@ -59,33 +57,36 @@ class CrawlerHandler
     /**
      * 將清潔後的留言新增到資料庫 - Handler
      */
-    function addReplyHandler($url, $crawler)
+    public function addReplyHandler($url, $crawler)
     {
-        //取得最後一則回覆時間
-        $last_at = $crawler->last_at;
-        if (!$last_at) {
-            $last_at = '2021-01-01 00:00:00';
-        }
-        $last_at = strtotime($last_at);
-
-        //取得回覆
+        // 取得回覆
         $replys = $this->getReplys($url);
-        if(!$replys){
+        if (!$replys) {
             return 0;
         }
+
+        // 只抓取最後150則回覆
+        $startReplyNo = (count($replys) > 150) ? (count($replys) - 150) : 0;
+
+        // 取得最後一則回覆時間
+        $lastAt = strtotime($crawler->last_at ?? '2021-01-01 00:00:00');
+
         $addCou = 0;
         $crawlerItems = $crawler->items();
-        foreach ($replys as $val) {
-            if ($last_at < strtotime($val['created_at'])) {
+        foreach ($replys as $key => $val) {
+            if ($key < $startReplyNo) {
+                continue;
+            }
+            if ($lastAt < strtotime($val['created_at'])) {
                 $crawlerItems->updateOrCreate(['ptt_id' => $val['ptt_id'], 'created_at' => $val['created_at']], ['content' => $val['content']]);
-                $new_last_at = $val['created_at'];
+                $newLastAt = $val['created_at'];
                 $addCou++;
                 pSiteLineNotify("Crawler\n\n". $val['content']);
             }
         }
 
         if ($addCou > 0) {
-            $crawler->last_at = $new_last_at;
+            $crawler->last_at = $newLastAt;
             $crawler->save();
         }
         return $addCou;
@@ -97,7 +98,7 @@ class CrawlerHandler
      * @param  String $url
      * @return Array
      */
-    function getReplys($url)
+    public function getReplys($url)
     {
         $ql = QueryList::getInstance();
         $list = $ql->get($url)
@@ -107,27 +108,29 @@ class CrawlerHandler
                 'created_at' => array('.push-ipdatetime', 'texts'),
             ])
             ->query()->getData();
-        if(!$list['ptt_id']){
+        if (!$list['ptt_id']) {
             return;
         }
 
         $arr = ['ptt_id', 'content', 'created_at'];
-
         foreach ($arr as $tag) {
             foreach ($list[$tag] as $key => $val) {
-                if ($tag == 'content') {
+                if ($tag === 'content') {
                     $val = Str::replaceFirst(': ', '', $val);
-                } else if ($tag == 'created_at') {
+                } elseif ($tag === 'created_at') {
+                    // val = 12/13 12:28
                     $val = substr($val, -11);
-                    $val = '2021/' . $val;
+                    $mon = substr($val, 0, 2);
+                    $year = ($mon > date('m')) ? date("Y", strtotime("-1 year")) : date("Y");
+                    $val = sprintf('%s/%s', $year, $val);
                     $val = date("Y-m-d H:i:s", strtotime($val));
                 }
                 $data[$key][$tag] = $val;
             }
         }
 
-        $arr_count = count($data);
-        for ($key = 0; $key < $arr_count; $key++) {
+        $arrCount = count($data);
+        for ($key = 0; $key < $arrCount; $key++) {
             if (isset($data[$key + 1])) {
                 if ($data[$key]['ptt_id'] == $data[$key + 1]['ptt_id']) {
                     $data[$key]['content'] = $data[$key]['content'] . $data[$key + 1]['content'];
@@ -144,15 +147,15 @@ class CrawlerHandler
     /**
      * (棄用) 執行 抓取文章新留言-單篇
      */
-    function checkPost($url)
+    public function checkPost($url)
     {
         if (!$url) {
             return '請輸入網址';
         }
 
-        $post_header = $this->getPostHeader($url);
+        $postHeader = $this->getPostHeader($url);
 
-        $crawler = Crawler::where('slug', $post_header['slug'])->first();
+        $crawler = Crawler::where('slug', $postHeader['slug'])->first();
         if (!$crawler) {
             return '請先新增網址';
         }
@@ -167,7 +170,7 @@ class CrawlerHandler
      * @param  String $url
      * @return Array
      */
-    function getPostHeader($url)
+    public function getPostHeader($url)
     {
         $ql = QueryList::getInstance();
         $title = $ql->get($url)
@@ -183,4 +186,3 @@ class CrawlerHandler
         return $array;
     }
 }
-?>

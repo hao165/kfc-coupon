@@ -11,9 +11,8 @@ class CouponStatusType
      */
     const USABLE = 1;
 
-
     /**
-     * 已過期
+     * 已失效
      *
      * @var string
      */
@@ -39,5 +38,4 @@ class CouponStatusType
      * @var string
      */
     const CHAT = 99;
-
 }

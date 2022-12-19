@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Collect;
 use App\Models\Coupon;
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -17,23 +16,10 @@ class CollectController extends Controller
      */
     public function index()
     {
-        $user = Auth::user();
-        $userId = $user->id;
-
-        $coupons = Collect::where('collects.user_id', $userId);
-        $list = $coupons->pluck('coupon_id')->all();
-
-        $collects = $coupons
-            ->join('coupons', 'collects.coupon_id', '=', 'coupons.id')
-            ->pluck('coupons.slug')->all();
-
-        if(!count($list)) {
-            $list = [];
-            $message = "目前尚未有個人收藏的Coupon！";
-        }else{
-            $list = Coupon::whereIn('id',$list)->get();
-            $message = "";
-        }
+        $user     = Auth::user();
+        $collects = $user->collect_list;
+        $list     = $user->collects->pluck('coupon')->sortByDesc('view_cou')->all(); // model coupon
+        $message  = count($list) ? "" : "目前尚未有個人收藏的Coupon！";
 
         return view('collect.index', compact('list', 'collects', 'message'));
     }
@@ -41,15 +27,12 @@ class CollectController extends Controller
     /**
      * 個人收藏-編輯
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  Request  $request
      */
     public function update(Request $request)
     {
-        $user = Auth::user();
-        $team = $user->currentTeam;
-
         $slug = $request->input('slug');
-        if (!$slug) {
+        if (is_null($slug)) {
             return response()->json([
                 "success" => false,
                 "message" => "請選擇優惠券",
@@ -57,7 +40,8 @@ class CollectController extends Controller
         }
 
         // 權限判斷
-        if (!$user->hasTeamPermission($team, 'collect')) {
+        $user = Auth::user();
+        if (!$user->hasTeamPermission($user->currentTeam, 'collect')) {
             return response()->json([
                 "success" => false,
                 "message" => "權限不足",
@@ -74,13 +58,12 @@ class CollectController extends Controller
         }
 
         $couponId = $coupon->id;
-        $userId = $user->id;
-        $collect = Collect::where('user_id', $userId)->where('coupon_id', $couponId)->first();
+        $collect  = $user->collects->where('coupon_id', $couponId)->first();
 
-        // 新增
         if (!$collect) {
-            Collect::create(
-                ['user_id' => $userId, 'coupon_id' => $couponId]
+            // 新增
+            $user->collects()->create(
+                ['coupon_id' => $couponId]
             );
             $coupon->increment('collect_cou');
             return response()->json([
@@ -88,16 +71,16 @@ class CollectController extends Controller
                 "action" => 'add',
                 "message" => "該優惠券已從收藏中 新增 ！",
             ]);
+        } else {
+            // 刪除
+            $collect->delete();
+            $coupon->decrement('collect_cou');
+            return response()->json([
+                "success" => true,
+                "action" => 'del',
+                "message" => "該優惠券已從收藏中 刪除 ！",
+            ]);
         }
-
-        // 刪除
-        Collect::destroy($collect->id);
-        $coupon->decrement('collect_cou');
-        return response()->json([
-            "success" => true,
-            "action" => 'del',
-            "message" => "該優惠券已從收藏中 刪除 ！",
-        ]);
     }
 
     /**
@@ -105,29 +88,20 @@ class CollectController extends Controller
      */
     public function rank()
     {
-        $list = Collect::orderBy('count', 'desc')
-            ->select(DB::raw('coupon_id,count(*) as count'))
+        $user = Auth::user();
+        $collects = $user ? $user->collect_list : [];
+
+        $query = Collect::with('coupon')
+            ->orderBy('count', 'desc')
+            ->select(DB::raw('coupon_id, count(id) as count'))
             ->groupBy('coupon_id')
-            ->take(15)
+            ->take(20)
             ->get();
 
-        $collects = [];
-        if ($user = Auth::user()) {
-            $collects = $user->have_collects;
-        }
+        $list = $query->pluck('coupon')->all(); // model coupon
 
-        if (!count($list)) {
-            $list = [];
-            $message = "目前收藏榜尚無Coupon！";
-        } else {
-            $rank = $list->pluck('coupon_id')->all();
-            $list = Coupon::whereIn('id', $rank)
-                ->orderByRaw(DB::raw("field(id," . implode(',', $rank) . ")"))
-                ->get();
-            $message = "";
-        }
+        $message = count($list) ? "" : "目前收藏榜尚無Coupon！";
 
         return view('collect.rank', compact('list', 'collects', 'message'));
     }
-
 }

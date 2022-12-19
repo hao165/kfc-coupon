@@ -17,7 +17,7 @@
                 {{-- 討論區slug-99999 --}}
                 <a class="text-decoration-none btn btn-outline-secondary">{{$comment->title}}</a>
                 @else
-                <a class="text-decoration-none btn btn-outline-primary" href="{{route('coupons.show',$comment->slug)}}" target="_blank">{{$comment->title}}</a>
+                <a class="text-decoration-none btn btn-outline-primary" href="{{route('coupons.show', $comment->slug)}}">{{$comment->title}}</a>
                 @endif
                 @if($comment->tag != 'reply')
                 <a class="text-decoration-none btn {{$comment->tag_css}}">{{$comment->tag_name}}</a>
@@ -28,6 +28,11 @@
                 </div>
             </div>
         </div>
+        @if($loop->iteration=='3')
+        <div class="row justify-content-center my-4 mx-2">
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8078981033820348" crossorigin="anonymous"></script> <!-- KFC-TOP --> <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-8078981033820348" data-ad-slot="9274099060" data-ad-format="auto" data-full-width-responsive="true"></ins> <script> (adsbygoogle = window.adsbygoogle || []).push({}); </script>
+        </div>
+        @endif
         @endforeach
     </div>
     @include('partials.pagination')

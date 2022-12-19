@@ -23,7 +23,7 @@
             <div class="card-body">
                 <div class="card-header rounded bg-secondary bg-gradient mb-3" style="--bs-bg-opacity: .5;">
                 <h5 class="mt-1 mb-2">
-                    @if ($coupon->is_hot=='lv3')
+                    @if ($coupon->hot_level=='lv3')
                         <i class="bi bi-star-fill text-warning"></i>
                     @endif
 
@@ -31,9 +31,9 @@
                     <span class="fs-6 text-decoration-line-through">原價${{$coupon->old_price}}</span>
                     <span class="mx-4 fw-bold text-decoration-underline">{{$coupon->title}}</span>
 
-                    @if ($coupon->is_hot=='lv3')
+                    @if ($coupon->hot_level=='lv3')
                         <span class="rounded float-end bg-danger text-light p-1">
-                    @elseif ($coupon->is_hot=='lv2')
+                    @elseif ($coupon->hot_level=='lv2')
                         <span class="rounded float-end bg-success text-light p-1" style="--bs-bg-opacity: .7;">
                     @else
                         <span class="rounded float-end bg-white p-1">
@@ -71,13 +71,19 @@
             </div>
         </div>
         <div id="commentDiv" class="col-md-6 col-sm-12">
-            <div class="row my-4 mx-2">
+            <div class="row my-2">
+                <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8078981033820348" crossorigin="anonymous"></script> <!-- KFC-TOP --> <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-8078981033820348" data-ad-slot="9274099060" data-ad-format="auto" data-full-width-responsive="true"></ins> <script> (adsbygoogle = window.adsbygoogle || []).push({}); </script>
+            </div>
+            <div class="row mb-4 mx-2">
                 <a class="btn btn-outline-primary showMask" href="#commentDiv" onclick="reply('{{$coupon->slug}}','false')">發 表 留 言</a>
             </div>
             @foreach ($comments as $comment)
             <div class="row justify-content-center my-4 mx-2">
                 <div class="col py-3 px-4 border border-4 rounded">
                     <a class="text-decoration-none btn btn-outline-dark">{{ $comment->name }}</a>
+                    @if($comment->coupon_id == '1')
+                    <a class="text-decoration-none btn btn-outline-secondary" href="{{route('chat.index',1)}}">討論區</a>
+                    @endif
                     @if($comment->tag != 'reply')
                     <a class="text-decoration-none btn {{$comment->tag_css}}">{{$comment->tag_name}}</a>
                     @endif
@@ -113,8 +119,7 @@ $(document).ready(function() {
                 url: "{{ route('coupons.view_count') }}",
                 type: 'get',
                 data:{
-                    slug : '{{$coupon->slug}}',
-                    ip : '{{request()->ip()}}',
+                    slug : '{{$coupon->slug}}'
                 },
             });
         });

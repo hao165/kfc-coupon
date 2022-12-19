@@ -4,7 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\TrackItem;
 use Illuminate\Console\Command;
-use App\Services\LineNotifyHandler;
+use App\Services\Api\LineNotifyHandler;
 use App\Services\TrackHandler;
 
 class TrackPttNotify extends Command
@@ -14,14 +14,14 @@ class TrackPttNotify extends Command
      *
      * @var string
      */
-    protected $signature = 'track:pttNotify';
+    protected $signature = 'track:ptt-notify';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = '追蹤看板 並Line Notify';
+    protected $description = '追蹤看板，並執行Line Notify';
 
     /**
      * Create a new command instance.
@@ -42,27 +42,25 @@ class TrackPttNotify extends Command
     {
         $this->info('[0] 開始爬取文章..');
 
-        $TrackHandler  = new TrackHandler();
-        $result = $TrackHandler->trackHandle();
+        $result = (new TrackHandler())->trackHandle();
         $this->info('符合條件：'.$result);
 
+
         $this->info('[1] 開始執行Notify..');
+        $count = 0;
         $list = TrackItem::where('status', '=', '0')->get();
-        $cou = 0;
-        foreach ($list as $item) {
+        $list->each(function ($item, $key) use (&$count) {
             $token = $item->user->line_notify;
             $text = "{$item->type_name}\n\n看板：{$item->cls}\n\n{$item->title}\n\n{$item->url}";
 
-            $LineNotifyHandler  = new LineNotifyHandler();
-            $result = $LineNotifyHandler->notifyHandle($token, $text);
-
+            $result = (new LineNotifyHandler())->send($token, $text);
             if ($result) {
-                $cou++;
+                $count++;
                 $item->status = 1;
                 $item->save();
             }
-        }
+        });
 
-        $this->info('發送筆數：' . $cou);
+        $this->info('發送筆數：' . $count);
     }
 }

@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Log;
 
 class GitHook
 {
-    function __construct()
+    public function __construct()
     {
         $this->hookSecret = config('app.gitHook'); // set NULL to disable check
         $this->log = 'git_hook';
@@ -18,7 +18,7 @@ class GitHook
      * @see     https://docs.github.com/webhooks/
      * @author  Miloslav Hůla (https://github.com/milo)
      */
-    function handle()
+    public function handle()
     {
         Log::channel($this->log)->info(" - connect - ");
 
@@ -85,8 +85,8 @@ class GitHook
                 Log::channel($this->log)->info("push.");
                 break;
 
-                //	case 'create':
-                //		break;
+            // case 'create':
+            //     break;
 
             default:
                 header('HTTP/1.0 404 Not Found');

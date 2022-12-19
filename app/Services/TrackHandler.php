@@ -9,7 +9,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use QL\QueryList;
-use App\Services\LineNotifyHandler;
+use App\Services\Api\LineNotifyHandler;
 
 class TrackHandler
 {
@@ -18,19 +18,19 @@ class TrackHandler
      *
      * @return Int 符合筆數
      */
-    function trackHandle()
+    public function trackHandle()
     {
         $track = Track::orderBy('updated_at')->first();
         if (!$track) {
-            $track = [];
+            return;
         }
 
-        $trackId = $track->id;
-        $userId = $track->user_id;
-        $url  = $track->url;
-        $page = $track->page;
+        $trackId  = $track->id;
+        $userId   = $track->user_id;
+        $url      = $track->url;
+        $page     = $track->page;
         $keywords = $track->keyword;
-        $push = $track->push;
+        $push     = $track->push;
 
         $ql = QueryList::getInstance();
         for ($i = 0; $i < $page; $i++) {
@@ -38,7 +38,7 @@ class TrackHandler
             $ptt['url'][$i]   = json_decode($item->attrs('href'));
             $ptt['push'][$i]  = json_decode($item->parent()->parent()->find('.nrec')->texts());
             $ptt['title'][$i] = json_decode($item->texts());
-            $ptt['who'][$i] = json_decode($item->parent()->parent()->find('.meta > .author')->texts());
+            $ptt['who'][$i]   = json_decode($item->parent()->parent()->find('.meta > .author')->texts());
             //下一頁
             $url = "https://www.ptt.cc" . $ql->get($url)->find('.btn-group-paging > .wide:eq(1)')->attr('href');
         }
@@ -50,9 +50,7 @@ class TrackHandler
 
         foreach ($ptt as $tag => $item) {
             foreach ($ptt[$tag] as $key => $val) {
-                if ($val === '爆') {
-                    $val = '100';
-                }
+                $val = ($val === '爆') ? '100' : $val;
                 $data[$key][$tag] = $val;
             }
         }
@@ -61,16 +59,16 @@ class TrackHandler
         foreach ($data as $key => $item) {
             $data[$key]['type'] = null;
             foreach ($item as $tag => $val) {
-                if ($tag == 'who') {
+                if ($tag === 'who') {
                     break;
                 }
-                if (($tag == 'push') && $push != '0') {
-                    if (intval($val) > $push) {
+                if (($tag === 'push') && $push != '0') {
+                    if (intval($val) >= $push) {
                         $data[$key]['type'] = 'push';
                     }
                 }
-                if ($tag == 'title') {
-                    $data[$key]['title'] = $data[$key]['title'] . ' 作者:' . $data[$key]['who'];
+                if ($tag === 'title') {
+                    $data[$key]['title'] = sprintf('%s 作者:%s', $data[$key]['title'], $data[$key]['who']);
                     foreach ($keywords as $keyword) {
                         if (strpos(strtolower($data[$key]['title']), $keyword) !== false) {
                             $data[$key]['type'] = 'keyword';
@@ -104,17 +102,16 @@ class TrackHandler
      *
      * @return Int 通知筆數
      */
-    function notifyHandle()
+    public function notifyHandle()
     {
-        $list = TrackItem::where('status','=','0')->where('id','=','1')->get();
+        $list = TrackItem::where('status', '=', '0')->where('id', '=', '1')->get();
         $cou = 0;
-        foreach($list as $item){
+        foreach ($list as $item) {
             $token = $item->user->line_notify;
             $text = "{$item->type_name}\n【{$item->url}】\n{$item->title}\n{$item->url}";
 
-            $LineNotifyHandler  = new LineNotifyHandler();
-            $result = $LineNotifyHandler->notifyHandle($token, $text);
-            if($result){
+            $result = (new LineNotifyHandler())->send($token, $text);
+            if ($result) {
                 $cou++;
             }
         }

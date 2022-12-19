@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Constant\CouponStatusType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Cviebrock\EloquentSluggable\Sluggable;
@@ -17,7 +18,7 @@ class Coupon extends Model
     /**
      * 批量賦值 - 白名單
      *
-     * @var string[]
+     * @var array
      */
     protected $fillable = [
         'user_id',
@@ -51,10 +52,10 @@ class Coupon extends Model
     protected $casts = [
         'old_price' => 'integer',
         'new_price' => 'integer',
-        'discount' => 'float',
-        'start_at' => 'datetime:Y-m-d',
-        'end_at' => 'datetime:Y-m-d',
-        'status' => 'integer',
+        'discount'  => 'float',
+        'start_at'  => 'datetime:Y-m-d',
+        'end_at'    => 'datetime:Y-m-d',
+        'status'    => 'integer',
     ];
 
     /**
@@ -106,23 +107,27 @@ class Coupon extends Model
 
     public function getStartAtAttribute()
     {
-        if(!$this->attributes['start_at']){
+        if (!$this->attributes['start_at']) {
             return;
         }
+
         return Carbon::createFromFormat('Y-m-d', $this->attributes['start_at'])->toDateString();
     }
 
     public function getEndAtAttribute()
     {
-        if(!$this->attributes['end_at']){
+        if (!$this->attributes['end_at']) {
             return;
         }
+
         return Carbon::createFromFormat('Y-m-d', $this->attributes['end_at'])->toDateString();
     }
 
     public function getStartAtTimestampAttribute()
     {
-        return $this->attributes['start_at'] ? strtotime($this->attributes['start_at']) : strtotime($this->attributes['created_at']);
+        return $this->attributes['start_at']
+            ? strtotime($this->attributes['start_at'])
+            : strtotime($this->attributes['created_at']);
     }
 
     public function getDiscountPercentAttribute()
@@ -130,29 +135,52 @@ class Coupon extends Model
         return $this->attributes['discount'] * 100 . "折";
     }
 
-    public function getStatusNameAttribute()
+    // 是否為期限內
+    public function getIsValidityAttribute()
     {
-        if(!isset($this->attributes['end_at'])){
-            return;
+        if (!$this->attributes['end_at']) {
+            return false;
         }
-        $word = "止";
-        if( $this->attributes['end_at'] < date('Y-m-d') ){
-            $word="+ (可以試試)";
+
+        if ($this->attributes['end_at'] < date('Y-m-d')) {
+            return false;
         }
-        return $this->attributes['status']==1 ? $word : "止";
+
+        return true;
     }
 
-    public function getIsHotAttribute()
+    public function getStatusNameAttribute()
     {
-        if( ($this->attributes['discount'] * 100) <= 54){
+        if (!$this->attributes['end_at']) {
+            return;
+        }
+
+        if ($this->attributes['status'] === CouponStatusType::USABLE) {
+            if ($this->attributes['end_at'] < date('Y-m-d')) {
+                return '+ (可以試試)';
+            }
+        }
+
+        if ($this->attributes['status'] === CouponStatusType::EXPIRED) {
+            if ($this->attributes['end_at'] < date('Y-m-d')) {
+                return '(已失效)';
+            }
+        }
+
+        return '止';
+    }
+
+    public function getHotLevelAttribute()
+    {
+        if (($this->attributes['discount'] * 100) <= 54) {
             return 'lv3';
         }
 
-        if ( ($this->attributes['discount'] * 100) <= 60) {
+        if (($this->attributes['discount'] * 100) <= 60) {
             return 'lv2';
         }
 
-        return false;
+        return;
     }
 
     public function getNewPriceNameAttribute()
@@ -162,7 +190,9 @@ class Coupon extends Model
 
     public function getEndAtNameAttribute()
     {
-        return $this->attributes['end_at'] ? '期限 ' . $this->attributes['end_at'] : '無限期';
+        return $this->attributes['end_at']
+            ? sprintf('期限 %s', $this->attributes['end_at'])
+            : '無限期';
     }
 
     public function getHotCouAttribute()
@@ -172,6 +202,6 @@ class Coupon extends Model
 
     public function getImageNameAttribute()
     {
-        return "/img/".$this->attributes['image'].".jpg";
+        return sprintf('/img/%s.jpg', $this->attributes['image']);
     }
 }

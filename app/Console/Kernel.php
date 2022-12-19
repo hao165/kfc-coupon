@@ -28,9 +28,9 @@ class Kernel extends ConsoleKernel
         $schedule->command('count:view')->dailyAt('00:05')->appendOutputTo(storage_path('logs/count_views.log'));
         $schedule->command('sitemap:generate')->dailyAt('02:00');
 
-        // 03:30 PTT CF異常
-        $schedule->command('crawler:checkAllPost')->everyTenMinutes()->unlessBetween('03:25', '03:35');
-        $schedule->command('track:pttNotify')->everyFiveMinutes()->unlessBetween('03:25', '03:35');
+        // Note: 03:30 PTT 常態性異常略過
+        $schedule->command('crawler:check-all-post')->everyTenMinutes()->unlessBetween('03:25', '03:35');
+        $schedule->command('track:ptt-notify')->everyFiveMinutes()->unlessBetween('03:25', '03:35');
     }
 
     /**

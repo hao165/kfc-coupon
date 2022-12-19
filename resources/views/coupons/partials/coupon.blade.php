@@ -1,21 +1,21 @@
 @foreach ($list as $coupon)
-<div class="col-lg-4 col-md-12 card-tag {{$coupon->tag}}" data-aos="fade-up" data-aos-offset="50" data-slug="{{$coupon->slug}}" data-hot="{{$coupon->hot_cou}}"
+<div class="col-lg-4 col-md-12 card-tag {{$coupon->tag}} {{$coupon->is_validity ? 'validity' : ''}}" data-aos="fade-up" data-aos-offset="50" data-slug="{{$coupon->slug}}" data-hot="{{$coupon->hot_cou}}"
     data-price="{{$coupon->new_price}}" data-discount="{{$coupon->discount}}"
     data-datetime="{{$coupon->start_at_timestamp}}">
     <div class="card mb-4 bg-light">
         <div class="card-body">
             <div class="card-header rounded bg-secondary bg-gradient mb-3" style="--bs-bg-opacity: .5;">
                 <h5 class="my-1">
-                    @if ($coupon->is_hot=='lv3')
+                    @if ($coupon->hot_level=='lv3')
                     <i class="bi bi-star-fill text-warning"></i>
                     @endif
 
                     <span class="me-2">{{$coupon->new_price_name}}</span>
                     <span class="me-1 fw-bold text-decoration-underline">{{$coupon->title}}</span>
 
-                    @if ($coupon->is_hot=='lv3')
+                    @if ($coupon->hot_level=='lv3')
                     <span class="rounded float-end fs-6 bg-danger text-light p-1">
-                    @elseif ($coupon->is_hot=='lv2')
+                    @elseif ($coupon->hot_level=='lv2')
                     <span class="rounded float-end fs-6 bg-success text-light p-1" style="--bs-bg-opacity: .7;">
                     @else
                     <span class="rounded float-end fs-6 bg-white p-1">
@@ -47,7 +47,7 @@
                     <i class="bi {{$collect_css}} collectItem" data-collect-slug="{{$coupon->slug}}"></i></a> ｜
                 <a class="text-decoration-none showLoading" href="javascript:void(0)" onclick="reply('{{$coupon->slug}}')" data-bs-toggle="tooltip" data-bs-placement="top" title="有{{$coupon->comment_cou}}則留言">
                     <i class="bi bi-chat-square-text"></i> ({{$coupon->comment_cou}})</a> ｜
-                <a class="text-decoration-none" href="{{route('coupons.show',$coupon->slug)}}" target="_blank">
+                <a class="text-decoration-none" href="{{route('coupons.show',$coupon->slug)}}">
                     <i class="bi bi-arrow-down-right-square" data-bs-toggle="tooltip" data-bs-placement="top" title="查看詳情"></i></a>
             </div>
             <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-secondary">{{$coupon->hot_cou}}</span>

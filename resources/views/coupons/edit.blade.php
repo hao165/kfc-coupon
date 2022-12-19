@@ -25,8 +25,12 @@
                 data: form_data,
                 type: 'post',
                 success: function(data) {
-                    $('#image').val(data);
-                    $('#imageTxt').val("上傳成功！");
+                    if (data) {
+                        $('#image').val(data);
+                        $('#imageTxt').val("上傳成功！");
+                    } else {
+                        $('#imageTxt').val("上傳失敗..");
+                    }
                 }
             });
         });
@@ -95,7 +99,7 @@
                 <label for="old_price" class="form-label">原價</label>
                 <input type="number" class="form-control" id="old_price" name="old_price" required max="9999" value="{{ $coupon->old_price }}">
             </div>
-            <div class="mb-3 col-md-2 col-6" data-bs-toggle="tooltip" data-bs-placement="top" title="1:可使用 2:過期 3:待審核 4:審核失敗">
+            <div class="mb-3 col-md-2 col-6" data-bs-toggle="tooltip" data-bs-placement="top" title="1:可使用 2:已失效 3:待審核 4:審核失敗">
                 <label for="old_price" class="form-label">狀態碼</label>
                 <input type="number" class="form-control" id="status" name="status" required value="{{ $coupon->status }}">
             </div>
@@ -112,7 +116,7 @@
                 內容 ： {{$coupon->content}}
             </div>
 
-            @foreach ($food_array as $key => $value)
+            @foreach ($foodArray as $key => $value)
             <div class="mb-3 col">
                 <label for="{{$key}}" class="form-label" style="white-space:nowrap;">{{ $value[0] }}</label><br>
                 <select id="{{$key}}" name="tag[{{$key}}]" style="padding:4px;" value="">

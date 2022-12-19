@@ -4,9 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Track;
 use App\Models\TrackItem;
-use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 
 class TrackController extends Controller
@@ -17,7 +15,7 @@ class TrackController extends Controller
     public function init()
     {
         $user = Auth::user();
-        if($user->line_notify){
+        if ($user->line_notify) {
             return redirect()->route('admin.track.list');
         }
         $URL = 'https://notify-bot.line.me/oauth/authorize?';
@@ -35,14 +33,11 @@ class TrackController extends Controller
     public function list()
     {
         $user = Auth::user();
-        if(!$user->line_notify){
+        if (!$user->line_notify) {
             return redirect()->route('admin.track.init');
         }
 
-        $list = $user->tracks;
-        if(!$list){
-            $list = [];
-        }
+        $list = $user->tracks ?? [];
 
         return view('admin.track.list', compact('list'));
     }
@@ -59,7 +54,7 @@ class TrackController extends Controller
         $cls    = strtolower($request->input('cls'));
         $data   = strtolower($request->input('data'));
         $data2  = strtolower($request->input('data2'));
-        if(!$action || !$cls){
+        if (is_null($action) || is_null($cls)) {
             return [
                 'success' => false,
                 'message' => '缺少參數',
@@ -67,8 +62,8 @@ class TrackController extends Controller
         }
 
         $item = Track::where('user_id', $userId)->where('cls', $cls)->first();
-        if ($action == 'delAll') {
-            if($item){
+        if ('delAll' === $action) {
+            if ($item) {
                 $item->delete();
             }
             return [
@@ -84,38 +79,37 @@ class TrackController extends Controller
         $status  = isset($item->status) ? $item->status : 1;
 
         // 新值覆蓋
-        if($action == 'edit') {
+        if ('edit' === $action) {
             $page = $data;
             $push = $data2;
-        } else if(is_numeric($data)){
-            if ($action == 'add') {
+        } elseif (is_numeric($data)) {
+            if ('add' === $action) {
                 $push = $data;
-            } else if ($action == 'del') {
+            } elseif ('del' === $action) {
                 $push = 0;
             }
         } else {
-            if($action == 'add'){
+            if ('add' === $action) {
                 array_push($keyword, $data);
                 $keyword = array_unique($keyword);
-            } else if ($action == 'del') {
+            } elseif ('del' === $action) {
                 $temp[0] = $data;
                 $keyword = array_diff($keyword, $temp);
             }
         }
-        $postData=[
+        $postData = [
             'page'      => $page,
             'keyword'   => $keyword,
             'push'      => $push,
             'status'    => $status,
         ];
 
-        Track::updateOrCreate(['user_id' => $userId, 'cls' => $cls],$postData);
+        Track::updateOrCreate(['user_id' => $userId, 'cls' => $cls], $postData);
 
         return [
             'success' => true,
             'message' => '',
         ];
-
     }
 
     /**
@@ -125,12 +119,11 @@ class TrackController extends Controller
     {
         $user = Auth::user();
         $userId = $user->id;
-
         if (!$user->line_notify) {
             return redirect()->route('admin.track.init');
         }
 
-        $list = TrackItem::where('user_id', $userId)->orderBy('id', 'DESC');
+        $list = TrackItem::where('user_id', $userId)->orderBy('id', 'desc');
         $paginate = pBuildPaginate($id, $list);
         return view('admin.track.item', compact('paginate'));
     }
@@ -147,10 +140,10 @@ class TrackController extends Controller
             $code = $_GET['code'];
             $redirect_uri = route('line_notify_callback');
             $message = array(
-                'grant_type' => 'authorization_code',
-                'code' => $code,
-                'redirect_uri' => $redirect_uri,
-                'client_id' => config('services.line_notify.client_id'),
+                'grant_type'    => 'authorization_code',
+                'code'          => $code,
+                'redirect_uri'  => $redirect_uri,
+                'client_id'     => config('services.line_notify.client_id'),
                 'client_secret' => config('services.line_notify.client_secret'),
             );
 
@@ -173,5 +166,4 @@ class TrackController extends Controller
             return redirect()->route('admin.track.list');
         }
     }
-
 }

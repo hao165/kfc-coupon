@@ -104,6 +104,13 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
         ],
 
+        'imgur_request' => [
+            'driver' => 'daily',
+            'path'   => storage_path('logs/imgur_request.log'),
+            'level'  => env('LOG_LEVEL', 'debug'),
+            'days'   => 90,
+        ],
+
         'null' => [
             'driver' => 'monolog',
             'handler' => NullHandler::class,

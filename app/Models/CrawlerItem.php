@@ -12,7 +12,7 @@ class CrawlerItem extends Model
     /**
      * 批量賦值 - 白名單
      *
-     * @var string[]
+     * @var array
      */
     protected $fillable = [
         'crawler_id',
@@ -51,9 +51,8 @@ class CrawlerItem extends Model
      */
     public $timestamps = false;
 
-    public function Crawler()
+    public function crawler()
     {
         return $this->belongsTo('App\Models\Crawler');
     }
-
 }

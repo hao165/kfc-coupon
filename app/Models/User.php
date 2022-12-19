@@ -25,10 +25,12 @@ class User extends Authenticatable
     /**
      * The attributes that are mass assignable.
      *
-     * @var string[]
+     * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password',
+        'name',
+        'email',
+        'password',
     ];
 
     /**
@@ -50,7 +52,7 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'social' => 'array',
+        'social'            => 'array',
     ];
 
     /**
@@ -59,7 +61,6 @@ class User extends Authenticatable
      * @var array
      */
     protected $appends = [
-        'profile_photo_url',
     ];
 
     //信箱轉小寫
@@ -88,11 +89,13 @@ class User extends Authenticatable
         return $this->hasMany('App\Models\Track');
     }
 
-    public function getHaveCollectsAttribute()
+    /**
+     * collect_list
+     **/
+    public function getCollectListAttribute()
     {
         return Collect::where('collects.user_id', $this->attributes['id'])
             ->join('coupons', 'collects.coupon_id', '=', 'coupons.id')
             ->pluck('coupons.slug')->all();
     }
-
 }

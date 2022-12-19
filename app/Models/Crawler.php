@@ -12,7 +12,7 @@ class Crawler extends Model
     /**
      * 批量賦值 - 白名單
      *
-     * @var string[]
+     * @var array
      */
     protected $fillable = [
         'cls',
@@ -54,7 +54,6 @@ class Crawler extends Model
 
     public function getUrlAttribute()
     {
-        return 'https://www.ptt.cc/bbs/' . $this->attributes['cls'] . '/' . $this->attributes['slug'] . '.html';
+        return sprintf('https://www.ptt.cc/bbs/%s/%s.html', $this->attributes['cls'], $this->attributes['slug']);
     }
-
 }

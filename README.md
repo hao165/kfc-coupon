@@ -6,15 +6,15 @@
 - 後端框架：Laravel 8 + Jetstream
 - 前端框架：Bootstrap 5.1 (with icon) + jQuery 3.6
 - REDIS (PECL-phpRedis) 用於流量統計.快取.SESSION
-- Git： 使用 Fork GUI 進行版本控管
-- VPS： Oracle Cloud + hestiaCP
+- Git： GitHub，透過Hook進行自動部屬，並使用 Fork GUI 進行控管
+- VPS： Oracle Cloud，網站管理面板使用hestiaCP
 
 ## 網站說明
-- 平均日流250人次，單日高峰3600人次
+- 平均日流250人次，單日高峰13000人次
 - 蒐集肯德基優惠券，並提供留言討論
 - 透過爬蟲抓取PTT討論，採半自動化轉入討論區
 - 前端功能：提供篩選、排序、搜尋
-- 會員功能：新增優惠券、留言討論、收藏管理
+- 會員功能：新增優惠券、留言討論、收藏管理、第三方登入(FaceBook、Line)
 - 後台功能：管理爬蟲資訊、Line Notify全站動態通知管理、審核優惠券
 
 ## 預覽圖
@@ -29,23 +29,20 @@
 
 ## 優化
 - 商業邏輯：將熱門討論的優惠券，預設排序於前面
-- GitHook：自動化更新支線
 - 運用轉場動畫，提高流暢感
 - 全站使用RWD
-- 第三方社群快速登入 (FaceBook、Line)
 
 ## 前端套件
-- SweetAlert2 (用途：Model彈窗)
-- jquery.mobile (用途：判斷真人瀏覽，觸擊流量統計)
-- AOS (用途：滾動動畫)
-- LazyLoad (用途：圖片延遲載入)
+- SweetAlert2 (用於Model彈窗)
+- jquery.mobile (用於判斷真人瀏覽，觸擊流量統計)
+- AOS (用於滾動動畫)
+- LazyLoad (用於圖片延遲載入)
 
 ## Composer
 - jaeger/querylist：爬蟲框架
-- intervention/image：圖片管理 - 浮水印、縮圖調整
+- intervention/image：圖片調整 - 浮水印、縮圖調整
 - laravel/jetstream：權限管理
 - laravel/socialite：第三方登入
 
-## API運用
-- Line Notify：全站動態、爬蟲資訊，傳訊至管理員Line
+## 其他API運用
 - imgur：圖片上傳平台

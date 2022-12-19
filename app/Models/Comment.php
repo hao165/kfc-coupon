@@ -15,7 +15,7 @@ class Comment extends Model
     /**
      * 批量賦值 - 白名單
      *
-     * @var string[]
+     * @var array
      */
     protected $fillable = [
         'user_id',
@@ -72,25 +72,27 @@ class Comment extends Model
 
     public function getTagNameAttribute()
     {
-        if ($this->attributes['tag'] == 'use_true'){
+        if ($this->attributes['tag'] === 'use_true') {
             return "可以使用";
         }
 
-        if ($this->attributes['tag'] == 'use_false') {
+        if ($this->attributes['tag'] === 'use_false') {
             return "不可使用";
         }
+
         return "＠　　　";
     }
 
     public function getTagCssAttribute()
     {
-        if ($this->attributes['tag'] == 'use_true') {
+        if ($this->attributes['tag'] === 'use_true') {
             return "btn-outline-success";
         }
 
-        if ($this->attributes['tag'] == 'use_false') {
+        if ($this->attributes['tag'] === 'use_false') {
             return "btn-outline-danger";
         }
+
         return "btn-outline-info";
     }
 
@@ -111,5 +113,4 @@ class Comment extends Model
         }
         return $this->attributes['content'];
     }
-
 }

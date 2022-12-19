@@ -49,5 +49,4 @@ class ClearCache extends Command
 
         $this->info(' - End - ');
     }
-
 }

@@ -1,21 +1,19 @@
 <?php
 
-namespace App\Services;
-
-use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
-use QL\QueryList;
+namespace App\Services\Api;
 
 class LineNotifyHandler
 {
+    public function __construct()
+    {
+    }
+
     /**
-     * 執行通知
+     * 傳送通知
      *
      * @return Boolean 是否成功
      */
-    function notifyHandle($token, $text)
+    public function send($token, $text)
     {
         if (!$token) {
             return false;

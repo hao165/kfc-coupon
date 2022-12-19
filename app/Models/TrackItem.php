@@ -12,7 +12,7 @@ class TrackItem extends Model
     /**
      * 批量賦值 - 白名單
      *
-     * @var string[]
+     * @var array
      */
     protected $fillable = [
         'user_id',
@@ -66,7 +66,7 @@ class TrackItem extends Model
 
     public function getUrlAttribute()
     {
-        return 'https://www.ptt.cc' . $this->attributes['url'];
+        return sprintf('https://www.ptt.cc%s', $this->attributes['url']);
     }
 
     public function getClsAttribute()
@@ -77,9 +77,9 @@ class TrackItem extends Model
 
     public function getTypeNameAttribute()
     {
-        if ($this->attributes['type'] == 'push') {
+        if ($this->attributes['type'] === 'push') {
             return '推文數';
-        } else if ($this->attributes['type'] == 'keyword') {
+        } elseif ($this->attributes['type'] === 'keyword') {
             return '關鍵字';
         }
     }

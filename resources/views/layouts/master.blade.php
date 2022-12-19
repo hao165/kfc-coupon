@@ -16,10 +16,10 @@ if(Auth::check()){
 <title>@yield('title') ｜ {{ config('app.site') }}</title>
 <meta http-equiv="Content-Language" content="zh-tw" />
 <meta name="author" content="iZO" />
-<meta name="description" content="@yield('description')。 KFC Coupon 優惠券 最低37折起！ 過期券報給大家知，能不能用來這裡就知道！肯德基優惠選 Coupon優惠選 KFC優惠選">
-<meta name="keywords" content="肯德基優惠券,KFC優惠選,肯德基優惠選,Coupon優惠選,KFC,肯德基,Coupon,優惠券,優惠選,快選,QuickPon,討論區,@yield('keywords')" />
+<meta name="description" content="@yield('description')。 KFC Coupon 優惠券 最低37折起！ 過期券報給大家知，能不能用來這裡就知道！肯德基優惠選 Coupon優惠選 KFC優惠選 ptt鄉民推薦">
+<meta name="keywords" content="肯德基優惠券,KFC優惠選,肯德基優惠選,Coupon優惠選,KFC,肯德基,Coupon,優惠券,優惠選,快選,QuickPon,ptt,鄉民,討論區,推薦,@yield('keywords')" />
 <meta property="og:title" content="@yield('title') ｜ {{ config('app.site') }}" />
-<meta property="og:description" content="@yield('description')。 KFC Coupon 優惠券 最低37折起！ 過期券報給大家知，能不能用來這裡就知道！肯德基優惠選 Coupon優惠選 KFC優惠選" />
+<meta property="og:description" content="@yield('description')。 KFC Coupon 優惠券 最低37折起！ 過期券報給大家知，能不能用來這裡就知道！肯德基優惠選 Coupon優惠選 KFC優惠選 ptt鄉民推薦" />
 <meta property="og:image" content="@yield('image', asset('icon.png'))" />
 <meta property="og:site_name" content="{{ config('app.site') }}" />
 <meta property="og:type" content="website" />
@@ -30,6 +30,9 @@ if(Auth::check()){
 <!-- Global site tag (gtag.js) - Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-FVMVNTDF76"></script>
 <script> window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-FVMVNTDF76'); </script>
+@endif
+@if(!$isMember)
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8078981033820348" crossorigin="anonymous"></script>
 @endif
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.7.2/font/bootstrap-icons.min.css" integrity="sha512-1fPmaHba3v4A7PaUsComSM4TBsrrRGs+/fv0vrzafQ+Rw+siILTiJa0NtFfvGeyY5E182SDTaF5PqP+XOHgJag==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css" integrity="sha512-GQGU0fMMi238uA+a/bdWJfpUGKUkBdgfFdgBm72SUQ6BeyWjoY/ton0tEjH+OSH9iP4Dfh+7HM0I9f5eR0L/4w==" crossorigin="anonymous" referrerpolicy="no-referrer" />

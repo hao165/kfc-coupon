@@ -22,7 +22,7 @@ class CountView extends Command
      *
      * @var string
      */
-    protected $description = '將前一天查看數，轉入DB。';
+    protected $description = '將redis上昨日的查看數轉入DB。';
 
     /**
      * Create a new command instance.
@@ -41,58 +41,50 @@ class CountView extends Command
      */
     public function handle()
     {
-        $log = 'count_view';
-        $date = $this->option('date');
-        if (!$date) {
-            $date = date("md", strtotime("-1 day"));
-        }
-        if (!is_numeric($date) || strlen($date) != 4) {
-            $msg = '輸入日期異常。應為md，四碼';
-            $this->error($msg);
-            // Log::channel($log)->info($msg);
+        $date = $this->option('date') ?? date("md", strtotime("-1 day"));
+        if (!is_numeric($date) || strlen($date) !== 4) {
+            $this->handleMsg('日期異常：date參數應為4碼。', 'error');
             return false;
         }
-        $msg = ' - ' . $date . ' - ';
-        $this->info($msg);
-        // Log::channel($log)->info($msg);
 
-        $prefix = 'v_' . $date;
-        $redis = Cache::getRedis();
-        $list = $redis->hgetall($prefix);
-        if(count($list)==0){
-            $msg = '找不到紀錄。';
-            $this->error($msg);
-            // Log::channel($log)->info($msg);
+        $this->handleMsg(sprintf(' - %s - ', $date));
+
+        $redis  = Cache::getRedis();
+        $prefix = sprintf('v_%s', $date);
+        $list   = $redis->hgetall($prefix);
+        if (count($list) === 0) {
+            $this->handleMsg('views not found..', 'error');
             return false;
         }
 
         $slugs[] = $prefix;
-        $total = 0;
-        foreach ($list as $key => $cou) {
+        $total   = 0;
+        collect($list)->sortDesc()->each(function ($cou, $key) use (&$slugs, &$total) {
             $temp = Str::of($key)->explode('_');
             $slug = $temp[2];
             if ($cou > 2) {
-                $msg = '[1] ' . $slug . ' ，新增 ' . $cou . ' 人次';
-                $this->info($msg);
-                // Log::channel($log)->info($msg);
-                Coupon::where('slug',$slug)->increment('view_cou', $cou);
+                Coupon::where('slug', $slug)->increment('view_cou', $cou);
+                $this->handleMsg(sprintf('[1] %s ，新增 %s 人次', $slug, $cou));
             }
             $slugs[] = $key;
             $total += $cou;
-        }
+        });
 
-        $msg = '[2] 總計 ' . $total . ' 人次';
-        $this->info($msg);
-        // Log::channel($log)->info($msg);
+        $this->handleMsg(sprintf('[2] 總計 %s 人次', $total));
 
         $redis->del($slugs);
-        $msg = '[3] 已清除 redis cache views count..';
-        $this->info($msg);
-        // Log::channel($log)->info($msg);
+        $this->handleMsg('[3] 已清除 redis cache views count..');
+    }
 
-
-        // $msg = ' - end - ';
-        // $this->info($msg);
-        // Log::channel($log)->info($msg);
+    /**
+     * console log.
+     *
+     * @param string $msg
+     * @param string $type info|error
+     */
+    public function handleMsg($msg, $type = 'info')
+    {
+        $this->$type($msg);
+        // Log::channel('count_view')->$type($msg);
     }
 }

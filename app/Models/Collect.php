@@ -12,7 +12,7 @@ class Collect extends Model
     /**
      * 批量賦值 - 白名單
      *
-     * @var string[]
+     * @var array
      */
     protected $fillable = [
         'user_id',
@@ -53,5 +53,4 @@ class Collect extends Model
     {
         return $this->belongsTo('App\Models\Coupon');
     }
-
 }

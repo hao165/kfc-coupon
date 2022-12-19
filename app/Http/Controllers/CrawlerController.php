@@ -2,16 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Comment;
 use App\Models\Coupon;
 use App\Models\Crawler;
 use App\Models\CrawlerItem;
-use App\Models\User;
+use App\Services\CrawlerHandler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
-use QL\QueryList;
-use App\Services\CrawlerHandler;
 
 class CrawlerController extends Controller
 {
@@ -20,15 +16,13 @@ class CrawlerController extends Controller
      */
     public function postList()
     {
-        $user = Auth::user();
-        $team = $user->currentTeam;
-
         // 權限判斷
-        if (!$user->hasTeamPermission($team, 'crawler')) {
+        $user = Auth::user();
+        if (!$user->hasTeamPermission($user->currentTeam, 'crawler')) {
             return redirect()->route('coupons.index');
         }
 
-        $list = Crawler::where('status','!=',3)->get();
+        $list = Crawler::where('status', '!=', 3)->orderBy('id', 'desc')->get();
 
         return view('admin.crawler.post-list', compact('list'));
     }
@@ -38,29 +32,25 @@ class CrawlerController extends Controller
      */
     public function itemList($id)
     {
-        $user = Auth::user();
-        $team = $user->currentTeam;
-
         // 權限判斷
-        if (!$user->hasTeamPermission($team, 'crawler')) {
+        $user = Auth::user();
+        if (!$user->hasTeamPermission($user->currentTeam, 'crawler')) {
             return redirect()->route('coupons.index');
         }
 
-        $list = CrawlerItem::where('status', 0)->orderBy('id', 'DESC');
+        $list = CrawlerItem::where('status', 0)->orderBy('id', 'desc');
         $paginate = pBuildPaginate($id, $list);
         return view('admin.crawler.item-list', compact('paginate'));
     }
 
     /**
-     * 後台管理 > 爬蟲回覆 發布/推送 by 機器人小肯
+     * 後台管理 > 爬蟲回覆 轉發布 by 機器人小肯
      */
     public function itemPush(Request $request)
     {
-        $user = Auth::user();
-        $team = $user->currentTeam;
-
         // 權限判斷
-        if (!$user->hasTeamPermission($team, 'crawler')) {
+        $user = Auth::user();
+        if (!$user->hasTeamPermission($user->currentTeam, 'crawler')) {
             return [
                 'success' => false,
                 'message' => '權限不足',
@@ -92,7 +82,6 @@ class CrawlerController extends Controller
 
         // 變更item狀態 為 發布
         if ($commentId = $result->id) {
-            // 討論數+1
             $coupon->increment('comment_cou');
             $item = CrawlerItem::find($itemId);
             $item->status = 1;
@@ -115,26 +104,22 @@ class CrawlerController extends Controller
      */
     public function itemCheck()
     {
-        $user = Auth::user();
-        $team = $user->currentTeam;
-
         // 權限判斷
-        if (!$user->hasTeamPermission($team, 'crawler')) {
+        $user = Auth::user();
+        if (!$user->hasTeamPermission($user->currentTeam, 'crawler')) {
             return [
                 'success' => false,
                 'message' => '權限不足',
             ];
         }
 
-        $CrawlerHandler  = new CrawlerHandler();
-        $result = $CrawlerHandler->checkAllPost();
+        $result = (new CrawlerHandler())->checkAllPost();
         $result = str_replace(PHP_EOL, '<br>', $result);
 
         return [
             'success' => true,
             'message' => '[手動執行完成]<br>' . $result,
         ];
-
     }
 
     /**
@@ -142,11 +127,9 @@ class CrawlerController extends Controller
      */
     public function store(Request $request)
     {
-        $user = Auth::user();
-        $team = $user->currentTeam;
-
         // 權限判斷
-        if (!$user->hasTeamPermission($team, 'crawler')) {
+        $user = Auth::user();
+        if (!$user->hasTeamPermission($user->currentTeam, 'crawler')) {
             return [
                 'success' => false,
                 'message' => '權限不足',
@@ -154,8 +137,7 @@ class CrawlerController extends Controller
         }
 
         $url = $request->input('url');
-        $CrawlerHandler  = new CrawlerHandler();
-        $result = $CrawlerHandler->addPostHandler($url);
+        $result = (new CrawlerHandler())->addPostHandler($url);
 
         return $result;
     }
@@ -165,21 +147,19 @@ class CrawlerController extends Controller
      */
     public function switchStatus(Request $request)
     {
-        $user = Auth::user();
-        $team = $user->currentTeam;
-
         // 權限判斷
-        if (!$user->hasTeamPermission($team, 'crawler')) {
+        $user = Auth::user();
+        if (!$user->hasTeamPermission($user->currentTeam, 'crawler')) {
             return [
                 'success' => false,
                 'message' => '權限不足',
             ];
         }
 
-        $id = $request->input('id');
+        $id     = $request->input('id');
         $status = $request->input('status');
-        $item = Crawler::find($id);
-        if((!$item) || (!$status)) {
+        $item   = Crawler::find($id);
+        if (is_null($item) || is_null($status)) {
             return [
                 'success' => false,
                 'message' => '找不到該編號[' . $id . '] 或 狀態 [' . $status . ']',
@@ -189,12 +169,16 @@ class CrawlerController extends Controller
         $item->status = $status;
         $item->save();
 
-        if ($status == 1) {
-            $statusTxt = '啟用';
-        }else if ($status == 2) {
-            $statusTxt = '停用';
-        }else if ($status == 3) {
-            $statusTxt = '刪除';
+        switch ($status) {
+            case 1:
+                $statusTxt = '啟用';
+                break;
+            case 2:
+                $statusTxt = '停用';
+                break;
+            case 3:
+                $statusTxt = '刪除';
+                break;
         }
 
         return [
@@ -202,5 +186,4 @@ class CrawlerController extends Controller
             'message' => '編號['. $id.']，已變更為 '.$statusTxt,
         ];
     }
-
 }

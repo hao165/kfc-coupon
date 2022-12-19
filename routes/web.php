@@ -52,13 +52,13 @@ Route::name('coupons.')->group(function () {
     Route::middleware(['auth:sanctum', 'verified'])->get('coupons/{id}/verify/{type}', [CouponController::class, 'verify'])->name('verify');
 
     Route::get('coupons/view-count', [CouponController::class, 'viewCount'])->name('view_count');
-    //coupons/{slug}不可高於coupons/expired
+    // Note: coupons/{slug}不可高於coupons/expired
     Route::get('coupons/{slug}', [CouponController::class, 'show'])->name('show');
 });
 
 Route::prefix('chat')->name('chat.')->group(function () {
     Route::get('', function () {
-        return redirect()->route('chat.index',1);
+        return redirect()->route('chat.index', 1);
     });
     Route::get('{id}', [CommentController::class, 'index'])->name('index');
 });
